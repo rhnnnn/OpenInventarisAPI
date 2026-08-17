@@ -2,8 +2,10 @@
 
 namespace App\Http\Controllers;
 
+use App\Exports\BarangExport;
 use App\Models\Barang;
 use Illuminate\Http\Request;
+use Maatwebsite\Excel\Facades\Excel;
 
 class BarangController extends Controller
 {
@@ -130,5 +132,13 @@ class BarangController extends Controller
             'status'=>true,
             'message'=>'data deleted successfully',
         ]);
+    }
+
+    public function exportxlsx(){
+        return Excel::download(new BarangExport,'data_barang.xlsx');
+    }
+
+    public function exportcsv(){
+        return Excel::download(new BarangExport,'data_barang.csv');
     }
 }
