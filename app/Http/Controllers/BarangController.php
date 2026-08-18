@@ -13,15 +13,22 @@ class BarangController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index()
+    public function index(Request $request)
     {
-        $barangs=Barang::all();
+        $search = $request->query('search');
+
+        $barangs = Barang::when($search, function ($query, $search) {
+            $query->where('kode_barang', 'like', "%$search%")
+                ->orWhere('nama_barang', 'like', "%$search%")
+                ->orWhere('kategori', 'like', "%$search%")
+                ->orWhere('lokasi', 'like', "%$search%");
+        })->get();
 
         return response()->json([
-            'status'=>true,
-            'message'=>'data found!',
-            'data'=>$barangs
-        ],200);
+            'status' => true,
+            'message' => $barangs->isEmpty() ? 'data tidak ditemukan' : 'data found!',
+            'data' => $barangs   // tetap array, walau kosong
+        ], 200);  // ✅ tetap 200, bukan 404
     }
 
     /**
@@ -60,58 +67,72 @@ class BarangController extends Controller
         return $cleanName . '_' . time() . '.' . $extension;
     }
 
+    // helper func for kode_barang
+    private function generateKodeBarang()
+    {
+        $lastBarang = Barang::orderBy('id', 'desc')->first();
+
+        if (!$lastBarang) {
+            return 'BRG-0001';
+        }
+
+        // ambil angka dari kode terakhir, misal "BRG-0007" -> 7
+        preg_match('/(\d+)$/', $lastBarang->kode_barang, $matches);
+        $lastNumber = isset($matches[1]) ? (int) $matches[1] : 0;
+
+        $nextNumber = $lastNumber + 1;
+
+        return 'BRG-' . str_pad($nextNumber, 4, '0', STR_PAD_LEFT);
+    }
+
     /**
      * Store a newly created resource in storage.
      */
     public function store(Request $request)
-    {
-        $validatedBarang=$request->validate([
-            'kode_barang'=>'required',
-            'nama_barang'=>'required',
-            'kategori'=>'required',
-            'jumlah'=>'required|numeric',
-            'kondisi'=>'required',
-            'lokasi'=>'required',
-            'tanggal_masuk'=>'required|date',
-            'foto'=>'nullable|image|mimes:png,jpg,jpeg,webp',
-            'dokumen'=>'nullable|file|mimes:pdf,doc,docx,odt'
-        ]);
+{
+    $validatedBarang = $request->validate([
+        'nama_barang'   => 'required',
+        'kategori'      => 'required',
+        'jumlah'        => 'required|numeric',
+        'kondisi'       => 'required',
+        'lokasi'        => 'required',
+        'tanggal_masuk' => 'required|date',
+        'foto'          => 'nullable|image|mimes:png,jpg,jpeg,webp',
+        'dokumen'       => 'nullable|file|mimes:pdf,doc,docx,odt',
+    ]);
 
-        $fotoPath = null;
-        if ($request->hasFile('foto')) {
-            $fotoFile = $request->file('foto');
-            $fotoName = $this->generateFileName($fotoFile);
-            $fotoPath = $fotoFile->storeAs('foto', $fotoName, 'public');
-        }
-
-        $dokumenPath=null;
-        if ($request->hasFile('dokumen')) {
-            $dokumenFile = $request->file('dokumen');
-            $dokumenName = $this->generateFileName($dokumenFile);
-            $dokumenPath = $dokumenFile->storeAs('dokumen', $dokumenName, 'public');
-        }
-
-        $storeBarang=Barang::create([
-            'kode_barang'=>$validatedBarang['kode_barang'],
-            'nama_barang'=>$validatedBarang['nama_barang'],
-            'kategori'=>$validatedBarang['kategori'],
-            'jumlah'=>$validatedBarang['jumlah'],
-            'kondisi'=>$validatedBarang['kondisi'],
-            'lokasi'=>$validatedBarang['lokasi'],
-            'tanggal_masuk'=>$validatedBarang['tanggal_masuk'],
-            'foto'=>$fotoPath,
-            'dokumen'=>$dokumenPath
-        ]);
-
-        if ($storeBarang) {
-            return response()->json([
-                'status'=>true,
-                'message'=>'data stored successfully',
-                'storedData'=>$validatedBarang
-            ]);
-        }
+    $fotoPath = null;
+    if ($request->hasFile('foto')) {
+        $fotoFile = $request->file('foto');
+        $fotoName = $this->generateFileName($fotoFile);
+        $fotoPath = $fotoFile->storeAs('foto', $fotoName, 'public');
     }
 
+    $dokumenPath = null;
+    if ($request->hasFile('dokumen')) {
+        $dokumenFile = $request->file('dokumen');
+        $dokumenName = $this->generateFileName($dokumenFile);
+        $dokumenPath = $dokumenFile->storeAs('dokumen', $dokumenName, 'public');
+    }
+
+    $storeBarang = Barang::create([
+        'kode_barang'   => $this->generateKodeBarang(), // auto-generate
+        'nama_barang'   => $validatedBarang['nama_barang'],
+        'kategori'      => $validatedBarang['kategori'],
+        'jumlah'        => $validatedBarang['jumlah'],
+        'kondisi'       => $validatedBarang['kondisi'],
+        'lokasi'        => $validatedBarang['lokasi'],
+        'tanggal_masuk' => $validatedBarang['tanggal_masuk'],
+        'foto'          => $fotoPath,
+        'dokumen'       => $dokumenPath,
+    ]);
+
+    return response()->json([
+        'status'  => true,
+        'message' => 'data stored successfully',
+        'data'    => $storeBarang,
+    ]);
+}
     /**
      * Update the specified resource in storage.
      */

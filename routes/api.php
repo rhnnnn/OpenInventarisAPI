@@ -13,10 +13,10 @@ Route::get('/test',function(){
 
 Route::prefix('/barang')->name('barang.')->controller(BarangController::class)->group(function(){
     Route::get('/','index')->name('index');
+    Route::get('/export/excel','exportxlsx')->name('export_xlsx');
+    Route::get('/export/csv','exportcsv')->name('export_csv');
     Route::get('/{id}','show')->name('show');
     Route::post('/store','store')->name('store');
     Route::match(['get','post'],'/update/{id}','update')->name('update');
     Route::delete('/delete/{id}','destroy')->name('destroy');
-    Route::get('/export/excel','exportxlsx')->name('export_xlsx');
-    Route::get('/export/csv','exportcsv')->name('export_csv');
 });
